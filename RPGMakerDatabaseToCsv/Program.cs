@@ -1,6 +1,7 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using Newtonsoft.Json;
 using RPGMakerDatabaseToCsv;
+using System.Runtime.CompilerServices;
 
 Console.WriteLine("Generating files...");
 
@@ -12,29 +13,49 @@ if (args.Length > 0)
 
 var skillsData = JsonConvert.DeserializeObject<List<Skills>>(File.ReadAllText(Path.Combine(dataFolder, "Skills.json")));
 var mapInfosData = JsonConvert.DeserializeObject<List<MapInfos>>(File.ReadAllText(Path.Combine(dataFolder, "MapInfos.json")));
+var classesData = JsonConvert.DeserializeObject<List<Classes>>(File.ReadAllText(Path.Combine(dataFolder, "Classes.json")));
+
+List<SkillsTableData> skillsTableData = new List<SkillsTableData>();
+foreach (var result in skillsData)
+{
+    if (result != null)
+    {
+        SkillsTableData data = new SkillsTableData();
+        data.Id = result.id;
+        data.Name = result.name;
+
+        data.ClassesThatLearnThisSkill = classesData.Where(x => x != null && x.learnings.Where(x => x.skillId == data.Id).Any()).Select(x => x.name).ToList();
+
+        skillsTableData.Add(data);
+    }
+}
 
 using (StreamWriter outputFile = new StreamWriter("SkillsTable.csv"))
 {
-    outputFile.WriteLine("ID,Name");
-    foreach (var result in skillsData)
+    outputFile.WriteLine("ID,Name,\"Learnt by classes\"");
+    foreach (var tableData in skillsTableData)
     {
-        if (result != null)
+        outputFile.Write($"{tableData.Id},{tableData.Name},");
+        foreach (var classData in tableData.ClassesThatLearnThisSkill)
         {
-            outputFile.WriteLine($"{result.id},{result.name}");
+            outputFile.Write($"{classData};");
         }
+        outputFile.WriteLine();
     }
 }
 
 using (StreamWriter outputFile = new StreamWriter("SkillsTable.md"))
 {
-    outputFile.WriteLine("|ID|Name|");
-    outputFile.WriteLine("|--|----|");
-    foreach (var result in skillsData)
+    outputFile.WriteLine("|ID|Name|Learnt by classes|");
+    outputFile.WriteLine("|--|----|-----------------|");
+    foreach (var tableData in skillsTableData)
     {
-        if (result != null)
+        outputFile.Write($"|{tableData.Id}|{tableData.Name}|");
+        foreach (var classData in tableData.ClassesThatLearnThisSkill)
         {
-            outputFile.WriteLine($"|{result.id}|{result.name}|");
+            outputFile.Write($"{classData}; ");
         }
+        outputFile.WriteLine("|");
     }
 }
 
